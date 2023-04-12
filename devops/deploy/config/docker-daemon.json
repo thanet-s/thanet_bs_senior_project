@@ -1,0 +1,5 @@
+{
+    "insecure-registries": [
+        "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
+    ]
+}

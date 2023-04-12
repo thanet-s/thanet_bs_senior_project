@@ -1,0 +1,9 @@
+- import_playbook: group2_create.yml
+- import_playbook: group2_config.yml
+- import_playbook: group2_prepare_app_vm1.yml
+- import_playbook: group2_prepare_app_vm2.yml
+- import_playbook: group2_prepare_app_api_vm.yml
+- import_playbook: /devops/vm_group_switch.yml
+  vars:
+    group_name: vm_group2
+    vm_action: shutdown

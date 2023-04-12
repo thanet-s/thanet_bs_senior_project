@@ -1,0 +1,6 @@
+<network>
+    <name>vm-link</name>
+    <bridge name='vm-link' />
+    <forward mode='none' />
+    <ip address="{{ hostvars[groups['baremetal'][0]]['vm_ip'] }}" netmask='255.255.255.0' />
+</network>

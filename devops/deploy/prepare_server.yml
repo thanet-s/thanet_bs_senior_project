@@ -1,0 +1,327 @@
+- name: Prepare server before create KVM cluster
+  hosts: "{{ groups['baremetal'][0] }}"
+
+  vars:
+    key_path: /key/{{ key_name }}
+    image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
+
+  tasks:
+    - name: Remove existing SSH key files
+      delegate_to: localhost
+      file:
+        path: "{{ key_path }}"
+        state: absent
+
+    - name: Remove existing SSH public key file
+      delegate_to: localhost
+      file:
+        path: "{{ key_path }}.pub"
+        state: absent
+
+    - name: Generate SSH key
+      delegate_to: localhost
+      command: ssh-keygen -q -t rsa -b 4096 -C "{{ key_name }}" -f "{{ key_path }}" -N ""
+
+    - name: Copy public key to server
+      copy:
+        src: "{{ key_path }}.pub"
+        dest: ~/.ssh/id_rsa.pub
+        mode: '0644'
+
+    - name: Add public key to authorized_keys file
+      copy:
+        remote_src: yes
+        src: ~/.ssh/id_rsa.pub
+        dest: ~/.ssh/authorized_keys
+        mode: '0600'
+
+    - name: Set NOPASSWD for sudo
+      become: yes
+      vars:
+        ansible_sudo_pass: "{{ ansible_password }}"
+      lineinfile:
+        dest: /etc/sudoers
+        line: "{{ ansible_user }} ALL=(ALL) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+        state: present
+
+    - name: Disable swap
+      become: yes
+      command: swapoff -a
+
+    - name: Remove swap from filesystem
+      become: yes
+      lineinfile:
+        path: /etc/fstab
+        regexp: '^(.*swap.*)$'
+        line: '# \1'
+
+    - name: Delete existing sources.list file
+      become: yes
+      file:
+        path: /etc/apt/sources.list
+        state: absent
+
+    - name: Create new sources.list file with updated mirror URLs
+      become: yes
+      copy:
+        content: |
+          deb {{ ubuntu_mirror }} {{ ansible_lsb.codename }} main restricted universe multiverse
+          deb {{ ubuntu_mirror }} {{ ansible_lsb.codename }}-updates main restricted universe multiverse
+          deb {{ ubuntu_mirror }} {{ ansible_lsb.codename }}-backports main restricted universe multiverse
+          deb {{ ubuntu_mirror }} {{ ansible_lsb.codename }}-security main restricted universe multiverse
+        dest: /etc/apt/sources.list
+
+    - name: Install require packages
+      become: yes
+      apt:
+        name:
+          - linux-image-generic-hwe-22.04
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - rsync
+        update_cache: yes
+
+    - name: Remove snap package manager
+      become: yes
+      apt:
+        name: snapd
+        state: absent
+
+    - name: Upgrade packages
+      become: yes
+      apt:
+        update_cache: yes
+        upgrade: 'yes'
+        autoremove: yes
+        autoclean: yes
+
+    - name: Download Docker GPG key
+      become: yes
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /tmp/docker-archive-keyring
+        mode: '0644'
+
+    - name: Import Docker GPG key
+      become: yes
+      command: gpg --batch --yes -o /usr/share/keyrings/docker-archive-keyring.gpg --dearmor /tmp/docker-archive-keyring
+
+    - name: Add Docker APT repository
+      become: yes
+      lineinfile:
+        path: /etc/apt/sources.list.d/docker.list
+        line: 'deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable'
+        create: yes
+
+    - name: Install Docker
+      become: yes
+      apt:
+        name:
+          - docker-ce=5:20.10.23~3-0~ubuntu-jammy
+          - docker-ce-cli=5:20.10.23~3-0~ubuntu-jammy
+          - containerd.io=1.6.15-1
+        allow_downgrade: yes
+        update_cache: yes
+
+    - name: Enable Docker service
+      become: yes
+      systemd:
+        name: docker
+        enabled: yes
+
+    - name: Ensure /etc/docker directory exists
+      become: yes
+      file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+
+    - name: Configure insecure registry in daemon.json
+      become: yes
+      template:
+        src: config/docker-daemon.json
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+
+    - name: Install KVM packages
+      become: yes
+      apt:
+        name:
+          - cpu-checker
+          - qemu-kvm
+          - virtinst
+          - uvtool
+        state: present
+
+    - name: Enable and start libvirtd service
+      become: yes
+      systemd:
+        name: libvirtd
+        enabled: yes
+        state: started
+
+    - name: Add user to kvm, libvirt and docker groups
+      become: yes
+      user:
+        name: "{{ ansible_user }}"
+        groups:
+          - kvm
+          - libvirt
+          - docker
+        append: yes
+
+    - name: Add server custom DNS entries to /etc/hosts
+      become: yes
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ hostvars[item]['vm_ip'] }} {{ hostvars[item]['hostname'] }}"
+        state: present
+      with_items: "{{ groups['baremetal'] }}"
+
+    - name: Add VM group1 custom DNS entries to /etc/hosts
+      become: yes
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ hostvars[item]['vm_ip'] }} {{ hostvars[item]['hostname'] }}"
+        state: present
+      with_items: "{{ groups['vm_group1'] }}"
+
+    - name: Add VM group2 custom DNS entries to /etc/hosts
+      become: yes
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ hostvars[item]['vm_ip'] }} {{ hostvars[item]['hostname'] }}"
+        state: present
+      with_items: "{{ groups['vm_group2'] }}"
+
+    - name: Add VM group3 custom DNS entries to /etc/hosts
+      become: yes
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ hostvars[item]['vm_ip'] }} {{ hostvars[item]['hostname'] }}"
+        state: present
+      with_items: "{{ groups['vm_group3'] }}"
+
+    - name: Reboot to run new kernel
+      become: yes
+      reboot:
+
+    - name: Start Docker Registry container
+      docker_container:
+        name: registry
+        image: registry:2
+        state: started
+        restart_policy: always
+        published_ports:
+          - "5000:5000"
+        volumes:
+          - "/opt/registry/data:/var/lib/registry"
+
+    - name: Generate vm-link-network.xml
+      template:
+        src: config/vm-link-network.xml
+        dest: ~/vm-link-network.xml
+
+    - name: Remove existing default network
+      become: yes
+      shell: |
+        virsh net-destroy default && \
+        virsh net-undefine default
+      ignore_errors: yes
+    
+    - name: Remove existing vm-link network
+      become: yes
+      shell: |
+        virsh net-destroy vm-link && \
+        virsh net-undefine vm-link
+      ignore_errors: yes
+
+    - name: Create vm-link network
+      become: yes
+      shell: |
+        virsh net-define vm-link-network.xml && \
+        virsh net-start vm-link && \
+        virsh net-autostart vm-link
+
+    - name: Get {{ router_ip }} interface name
+      shell: ip addr | grep 'inet {{ router_ip }}' | awk '{print $NF}'
+      register: lan_interface_output
+
+    - name: Set LAN interface variable
+      set_fact:
+        lan_interface: "{{ lan_interface_output.stdout }}"
+
+    - name: Show LAN interface name
+      debug:
+        var: lan_interface
+
+    - name: Create VM template file
+      template:
+        src: config/vm-template.xml
+        dest: ~/vm-template.xml
+        mode: '0644'
+
+    - name: Create directory for network configurations
+      file:
+        path: "~/network-configs"
+        state: directory
+
+    - name: Create directory for user data configurations
+      file:
+        path: "~/user-datas"
+        state: directory
+
+    - name: Sync Ubuntu 22.04 Cloud Image
+      command: uvt-simplestreams-libvirt sync release=jammy arch=amd64
+
+    - name: Copy sourcecode from local
+      become: yes
+      synchronize:
+        src: /src
+        dest: /tmp/
+        
+    - name: Build and push Docker images to {{ image_registry }} registry
+      docker_image:
+        name: "{{ image_registry }}/{{ item.image_name }}:latest"
+        build:
+          path: "{{ item.build_path }}"
+        source: build
+        push: yes
+        state: present
+        force_source: yes
+      loop:
+        - image_name: "monolithic"
+          build_path: /tmp/src/monolithic
+        - image_name: "account"
+          build_path: /tmp/src/microservice/account
+        - image_name: "transaction"
+          build_path: /tmp/src/microservice/transaction
+        - image_name: "user"
+          build_path: /tmp/src/microservice/user
+
+    - name: Pull CockroachDB from DockerHub and push to {{ image_registry }} registry
+      docker_image:
+        name: "cockroachdb/cockroach"
+        source: pull
+        tag: latest-v22.2
+        repository: "{{ image_registry }}/cockroach"
+        push: yes
+
+    - name: Pull NGINX from DockerHub and push to {{ image_registry }} registry
+      docker_image:
+        name: "nginx"
+        source: pull
+        tag: 1.21.6-alpine
+        repository: "{{ image_registry }}/nginx"
+        push: yes
+
+    - name: Clear Docker cache
+      command: docker system prune -af
+
+    - name: Reboot before create VMs
+      become: yes
+      reboot:

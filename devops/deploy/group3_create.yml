@@ -1,0 +1,42 @@
+- name: Create VMs in group3
+  hosts: "{{ groups['baremetal'][0] }}"
+  gather_facts: no
+
+  tasks:
+    - name: Generate network configuration file
+      template:
+        src: config/vm-network-config.yml
+        dest: "~/network-configs/{{ item }}.yml"
+      with_items: "{{ groups['vm_group3'] }}"
+      vars:
+        vm_ip: "{{ hostvars[item]['vm_ip'] }}"
+        internet_ip: "{{ hostvars[item]['ansible_host'] }}"
+
+    - name: Generate user data configuration file
+      template:
+        src: config/user-data.yml
+        dest: "~/user-datas/{{ item }}.yml"
+      with_items: "{{ groups['vm_group3'] }}"
+      vars:
+        hostname: "{{ hostvars[item]['hostname'] }}"
+
+    - name: Create VMs in vm_group3
+      shell: |
+        uvt-kvm create {{ item }} release=jammy \
+        --memory 7680 \
+        --cpu 2 \
+        --disk=20 \
+        --template="/home/{{ ansible_user }}/vm-template.xml" \
+        --user-data="/home/{{ ansible_user }}/user-datas/{{ item }}.yml" \
+        --network-config="/home/{{ ansible_user }}/network-configs/{{ item }}.yml"
+      with_items: "{{ groups['vm_group3'] }}"
+
+    - name: Wait for cloud-init to complete
+      delegate_to: localhost
+      wait_for:
+        host: "{{ hostvars[item]['ansible_host'] }}"
+        port: 22
+        delay: 5
+        timeout: 300
+        state: started
+      with_items: "{{ groups['vm_group3'] }}"

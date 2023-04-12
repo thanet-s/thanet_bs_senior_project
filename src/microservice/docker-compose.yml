@@ -1,0 +1,104 @@
+version: '3.7'
+services:
+  user:
+    build:
+      context: ./user
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - ACCOUNT_URL=account
+      - DATABASE_URL=cockroachdb+psycopg2://root@user-db:26257/userdb?sslmode=disable
+      - SECRET_KEY=6934c4d45339243bc774c68a6a01057b9a35818beea47d5ad5ba12080514b426
+    command: python main.py
+    volumes:
+      - ./user/app:/app:ro
+    depends_on:
+      - user-db
+  
+  account:
+    build:
+      context: ./account
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - DATABASE_URL=cockroachdb+psycopg2://root@account-db:26257/account?sslmode=disable
+      - SECRET_KEY=6934c4d45339243bc774c68a6a01057b9a35818beea47d5ad5ba12080514b426
+    command: python main.py
+    volumes:
+      - ./account/app:/app:ro
+    depends_on:
+      - account-db
+  
+  transaction:
+    build:
+      context: ./transaction
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - ACCOUNT_URL=account
+      - DATABASE_URL=cockroachdb+psycopg2://root@transaction-db:26257/transaction?sslmode=disable
+      - SECRET_KEY=6934c4d45339243bc774c68a6a01057b9a35818beea47d5ad5ba12080514b426
+    command: python main.py
+    volumes:
+      - ./transaction/app:/app:ro
+    depends_on:
+      - transaction-db
+
+  loadbalance:
+    image: nginx:1.21.6-alpine
+    restart: always
+    ports:
+      - 8000:8000
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - user
+      - account
+      - transaction
+
+  user-db:
+    image: cockroachdb/cockroach:latest-v22.2
+    restart: always
+    environment:
+      COCKROACH_DATABASE: userdb
+      COCKROACH_USER: dbuser
+      COCKROACH_PASSWORD: password
+    ports:
+      - 26257:26257
+      - 8080:8080
+    command: start-single-node --insecure
+    volumes:
+      - user-db-data:/cockroach/cockroach-data
+
+  account-db:
+    image: cockroachdb/cockroach:latest-v22.2
+    restart: always
+    environment:
+      COCKROACH_DATABASE: account
+      COCKROACH_USER: dbuser
+      COCKROACH_PASSWORD: password
+    ports:
+      - 26258:26257
+      - 8081:8080
+    command: start-single-node --insecure
+    volumes:
+      - account-db-data:/cockroach/cockroach-data
+
+  transaction-db:
+    image: cockroachdb/cockroach:latest-v22.2
+    restart: always
+    environment:
+      COCKROACH_DATABASE: transaction
+      COCKROACH_USER: dbuser
+      COCKROACH_PASSWORD: password
+    ports:
+      - 26259:26257
+      - 8082:8080
+    command: start-single-node --insecure
+    volumes:
+      - transaction-db-data:/cockroach/cockroach-data
+
+volumes:
+  user-db-data:
+  account-db-data:
+  transaction-db-data:

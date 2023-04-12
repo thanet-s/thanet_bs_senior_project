@@ -1,0 +1,57 @@
+- name: Config k8s for group3
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    containerd_insecure_registries_value: >-
+      {{"{ '" + hostvars[groups['baremetal'][0]]['hostname'] + ":5000': 'http://" + hostvars[groups['baremetal'][0]]['vm_ip'] + ":5000' }"}}
+    containerd_insecure_registries:
+      "{{ containerd_insecure_registries_value }}"
+
+  tasks:
+    - name: Copy sample inventory to ubu-cluster
+      copy:
+        src: /devops/deploy/kubespray/inventory/sample/
+        dest: /devops/deploy/kubespray/inventory/ubu-cluster/
+
+    - name: Update containerd config
+      lineinfile:
+        path: /devops/deploy/kubespray/inventory/ubu-cluster/group_vars/all/containerd.yml
+        regexp: '^# containerd_insecure_registries:.*$'
+        line: 'containerd_insecure_registries: {{ containerd_insecure_registries }}'
+        state: present
+
+    - name: Set kube_proxy_strict_arp to true
+      lineinfile:
+        path: /devops/deploy/kubespray/inventory/ubu-cluster/group_vars/k8s_cluster/k8s-cluster.yml
+        regexp: '^kube_proxy_strict_arp:.*$'
+        line: 'kube_proxy_strict_arp: true'
+        state: present
+
+    - name: Set upstream dns config
+      lineinfile:
+        path: /devops/deploy/kubespray/inventory/ubu-cluster/group_vars/all/all.yml
+        regexp: '^# upstream_dns_servers:.*'
+        line: 'upstream_dns_servers: [208.67.222.222, 8.8.8.8]'
+        state: present
+
+    - name: Set local_path_provisioner_enabled to true
+      lineinfile:
+        path: /devops/deploy/kubespray/inventory/ubu-cluster/group_vars/k8s_cluster/addons.yml
+        regexp: '^local_path_provisioner_enabled:.*$'
+        line: 'local_path_provisioner_enabled: true'
+        state: present
+
+    - name: Set enable_nodelocaldns to false
+      lineinfile:
+        path: /devops/deploy/kubespray/inventory/ubu-cluster/group_vars/k8s_cluster/k8s-cluster.yml
+        regexp: '^enable_nodelocaldns:.*$'
+        line: 'enable_nodelocaldns: false'
+        state: present
+
+    - name: Generate k8s inventory file from template
+      template:
+        src: config/k8s-inventory/inventory.ini
+        dest: /devops/deploy/kubespray/inventory/ubu-cluster/inventory.ini
+      vars:
+        cluster_group: "vm_group3"

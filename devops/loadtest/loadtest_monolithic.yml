@@ -1,0 +1,112 @@
+- name: Loadtest monolithicc
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    vm1_host: "{{ groups['vm_group1'][0] }}"
+    vm2_host: "{{ groups['vm_group1'][1] }}"
+    image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
+    api_hostname: monolithic
+    api_url: "http://{{ api_hostname }}"
+
+  tasks:
+    - name: Add {{ api_hostname }} DNS to /etc/hosts
+      become: true
+      shell: "echo '{{ hostvars[vm1_host]['ansible_host'] }} {{ api_hostname }}' >> /etc/hosts"
+
+    - name: Create hosts dictionary from group
+      set_fact:
+        container_custom_hosts: "{{ dict(groups['vm_group1'] | map('extract', hostvars, 'hostname') | zip(groups['vm_group1'] | map('extract', hostvars, 'vm_ip'))) }}"
+
+    - name: Create Docker volume
+      delegate_to: "{{ vm2_host }}"
+      docker_volume:
+        name: db-data
+
+    - name: Start CockroachDB container
+      delegate_to: "{{ vm2_host }}"
+      docker_container:
+        name: db
+        image: "{{ image_registry }}/cockroach:latest-v22.2"
+        restart_policy: always
+        env:
+          COCKROACH_DATABASE: monolithic
+        command: start-single-node --insecure
+        volumes:
+          - db-data:/cockroach/cockroach-data
+        etc_hosts: "{{ container_custom_hosts }}"
+        published_ports:
+          - 26257:26257
+          - 8080:8080
+
+    - name: Create monolithic container
+      delegate_to: "{{ vm1_host }}"
+      docker_container:
+        name: api
+        image: "{{ image_registry }}/monolithic:latest"
+        restart_policy: always
+        env:
+          DATABASE_URL: "cockroachdb+psycopg2://root@{{ hostvars[vm2_host]['hostname'] }}:26257/monolithic?sslmode=disable"
+          SECRET_KEY: "{{ secret_key }}"
+        etc_hosts: "{{ container_custom_hosts }}"
+        published_ports:
+          - 8000:8000
+
+    - name: Create reverse proxy container
+      delegate_to: "{{ vm1_host }}"
+      docker_container:
+        name: nginx
+        image: "{{ image_registry }}/nginx:1.21.6-alpine"
+        restart_policy: always
+        volumes:
+          - "/home/{{ ansible_user }}/nginx.conf:/etc/nginx/nginx.conf:ro"
+          - "/home/{{ ansible_user }}/vhost.conf:/etc/nginx/conf.d/default.conf:ro"
+        etc_hosts: "{{ container_custom_hosts }}"
+        published_ports:
+          - 80:80
+
+    - name: Wait for API ready
+      uri:
+        url: "{{ api_url }}/api/docs"
+        method: GET
+        return_content: yes
+      register: api_docs_response
+      until: api_docs_response.status == 200
+      retries: 60
+      delay: 1
+
+    - name: Sleep 5 seconds before loadtest
+      pause:
+        seconds: 5
+
+    - name: Run k6 loadtest script
+      shell: |
+        k6 run \
+        --out csv=/loadtest_result/loadtest_monolithic_{{ '%Y%m%d%H%M%S' | strftime }}.csv \
+        --vus 20 --duration 10s \
+        --env API_URL={{ api_url }} \
+        /devops/loadtest/k6_monolithic.js
+
+    - name: Delete monolithic container
+      delegate_to: "{{ vm1_host }}"
+      docker_container:
+        name: api
+        state: absent
+
+    - name: Delete reverse proxy container
+      delegate_to: "{{ vm1_host }}"
+      docker_container:
+        name: nginx
+        state: absent
+
+    - name: Delete CockroachDB container
+      delegate_to: "{{ vm2_host }}"
+      docker_container:
+        name: db
+        state: absent
+
+    - name: Delete DB volume
+      delegate_to: "{{ vm2_host }}"
+      docker_volume:
+        name: db-data
+        state: absent

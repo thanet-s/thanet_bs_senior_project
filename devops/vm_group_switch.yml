@@ -1,0 +1,27 @@
+- name: Manage VM group state
+  hosts: "{{ groups['baremetal'][0] }}"
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: "{{ vm_action }} {{ group_name }} VMs"
+      shell: virsh {{ vm_action }} {{ item }}
+      with_items: "{{ groups[group_name] }}"
+
+    - name: "Wait for {{ group_name }} VMs to start"
+      wait_for:
+        host: "{{ hostvars[item]['hostname'] }}"
+        port: 22
+        delay: 1
+        timeout: 300
+        state: started
+      with_items: "{{ groups[group_name] }}"
+      when: vm_action == "start"
+
+    - name: "Wait for {{ group_name }} VMs to shutdown"
+      shell: >
+        while [ "$(virsh domstate {{ item }})" != "shut off" ]; do
+          sleep 1
+        done
+      with_items: "{{ groups[group_name] }}"
+      when: vm_action == "shutdown"

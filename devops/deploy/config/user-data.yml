@@ -1,0 +1,21 @@
+#cloud-config
+
+# Set hostname
+hostname: "{{ hostname }}"
+
+# Add user with password
+users:
+  - name: "{{ ansible_user }}"
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - "{{ lookup('file', '/key/' + key_name + '.pub') }}"
+
+# Disable swap
+swap:
+  filename: none
+
+apt:
+  primary:
+    - arches: [amd64]
+      uri: "{{ ubuntu_mirror }}"

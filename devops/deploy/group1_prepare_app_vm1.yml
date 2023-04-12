@@ -1,0 +1,29 @@
+- name: Prepare VM1
+  hosts: "{{ groups['vm_group1'][0] }}"
+  gather_facts: no
+
+  vars:
+    image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
+
+  tasks:
+    - name: Copy NGINX config
+      copy:
+        src: config/nginx.conf
+        dest: ~/nginx.conf
+
+    - name: Generate vhost config
+      template:
+        src: config/group1/vhost.conf
+        dest: ~/vhost.conf
+      vars:
+        cluster_group: "vm_group1"
+
+    - name: Pull NGINX image from {{ image_registry }}
+      docker_image:
+        name: "{{ image_registry }}/nginx:1.21.6-alpine"
+        source: pull
+
+    - name: Pull monolithic image from {{ image_registry }}
+      docker_image:
+        name: "{{ image_registry }}/monolithic:latest"
+        source: pull

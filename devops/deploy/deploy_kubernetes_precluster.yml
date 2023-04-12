@@ -1,0 +1,3 @@
+- import_playbook: group3_create.yml
+- import_playbook: group3_config.yml
+- import_playbook: group3_k8s_precluster.yml

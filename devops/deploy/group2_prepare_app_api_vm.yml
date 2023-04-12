@@ -1,0 +1,15 @@
+- name: Prepare API VMs
+  hosts: vm_group2
+  gather_facts: no
+
+  vars:
+    image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
+
+  tasks:
+    - name: Check API VMs
+      block:
+        - name: Pull monolithic image from {{ image_registry }}
+          docker_image:
+            name: "{{ image_registry }}/monolithic:latest"
+            source: pull
+      when: inventory_hostname != groups['vm_group2'][0] and inventory_hostname != groups['vm_group2'][1]

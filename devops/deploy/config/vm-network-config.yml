@@ -1,0 +1,20 @@
+# Set up network interfaces
+network:
+  version: 2
+  ethernets:
+    {{ vm_link_interface }}:
+      dhcp4: no
+      dhcp6: no
+      addresses:
+        - "{{ vm_ip }}/24"
+    {{ vm_public_interface }}:
+      dhcp4: no
+      dhcp6: no
+      addresses:
+        - "{{ internet_ip }}/24"
+      routes:
+        - to: default
+          via: "{{ router_ip }}"
+      nameservers:
+        addresses:
+          - 208.67.222.222

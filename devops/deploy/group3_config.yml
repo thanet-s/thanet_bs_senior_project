@@ -1,0 +1,56 @@
+- name: Setup VMs in group3
+  hosts: vm_group3
+  become: yes
+  strategy: free
+
+  tasks:
+    - name: Add server custom DNS entries to /etc/hosts
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ hostvars[item]['vm_ip'] }} {{ hostvars[item]['hostname'] }}"
+        state: present
+      with_items: "{{ groups['baremetal'] }}"
+
+    - name: Install required packages
+      apt:
+        name:
+          - linux-image-generic-hwe-22.04
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - dnsutils
+          - ntp
+        update_cache: yes
+
+    - name: Remove snap package manager
+      apt:
+        name: snapd
+        state: absent
+
+    - name: Upgrade packages
+      apt:
+        upgrade: 'yes'
+        update_cache: yes
+        autoremove: yes
+        autoclean: yes
+
+    - name: Create kubernetes.conf file
+      file:
+        path: /etc/sysctl.d/99-sysctl.conf
+        owner: root
+        group: root
+        mode: '0644'
+        state: touch
+
+    - name: Enable net.ipv4.ip_forward in sysctl
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        sysctl_file: /etc/sysctl.d/99-sysctl.conf
+        state: present
+        reload: yes
+
+    - name: Reboot to run new kernel
+      reboot:

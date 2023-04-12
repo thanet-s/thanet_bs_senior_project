@@ -1,0 +1,12 @@
+- name: Prepare VM2
+  hosts: "{{ groups['vm_group1'][1] }}"
+  gather_facts: no
+
+  vars:
+    image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
+
+  tasks:
+    - name: Pull CockroachDB image from {{ image_registry }}
+      docker_image:
+        name: "{{ image_registry }}/cockroach:latest-v22.2"
+        source: pull

@@ -1,0 +1,32 @@
+version: '3.7'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - DATABASE_URL=cockroachdb+psycopg2://root@db:26257/monolithic?sslmode=disable
+      - SECRET_KEY=6934c4d45339243bc774c68a6a01057b9a35818beea47d5ad5ba12080514b426
+    command: python main.py
+    volumes:
+      - ./app:/app:ro
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+
+  db:
+    image: cockroachdb/cockroach:latest-v22.2
+    restart: always
+    environment:
+      COCKROACH_DATABASE: monolithic
+    ports:
+      - 26257:26257
+      - 8080:8080
+    command: start-single-node --insecure
+    volumes:
+      - db-data:/cockroach/cockroach-data
+
+volumes:
+  db-data:

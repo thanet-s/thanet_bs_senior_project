@@ -4,9 +4,16 @@ from sqlalchemy.sql import func
 from sqlalchemy import Column, String, DateTime, Date
 from database import Base
 
+
 class User(Base):
     __tablename__ = "users"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, index=True)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        unique=True,
+        index=True
+    )
     email = Column(String(255), unique=True, index=True)
     fullname = Column(String(255))
     phone_no = Column(String(10))

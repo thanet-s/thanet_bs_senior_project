@@ -7,7 +7,8 @@ from database import Base
 
 class Account(Base):
     __tablename__ = "accounts"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, unique=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True,
+                default=uuid.uuid4, unique=True, index=True)
     user_id = Column(UUID(as_uuid=True))
     account_number = Column(String(255), unique=True, index=True)
     account_balance = Column(Float)

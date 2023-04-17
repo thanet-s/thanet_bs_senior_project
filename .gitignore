@@ -2,6 +2,8 @@
 devops/deploy/kubespray/
 loadtest_result/
 key/
+*.sql
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

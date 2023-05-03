@@ -1,0 +1,137 @@
+- name: Loadtest k8s monolithicc
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    k8s_control_plane_node: "{{ groups['vm_group3'][0] }}"
+    k8s_control_plane_api: https://{{ hostvars[k8s_control_plane_node]['ansible_host'] }}:6443
+    image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
+    api_hostname: k8s-monolithic
+    db_hostname: db
+    api_url: "http://{{ api_hostname }}"
+
+  tasks:
+    - name: Add {{ api_hostname }} DNS to /etc/hosts
+      become: true
+      shell: "echo '{{ item.ip }} {{ item.host }}' >> /etc/hosts"
+      loop:
+        - host: "{{ api_hostname }}"
+          ip: "{{ k8s_ingress_ip }}"
+        - host: "{{ db_hostname }}"
+          ip: "{{ k8s_db_ip }}"
+  
+    - name: Copy k8s config from server to local
+      delegate_to: "{{ k8s_control_plane_node }}"
+      become: yes
+      fetch:
+        src: /etc/kubernetes/admin.conf
+        dest: ~/.kube/config
+        flat: yes
+
+    - name: Create monolithic namespace
+      k8s:
+        host: "{{ k8s_control_plane_api }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: monolithic
+
+    - name: Create CockroachDB cluster
+      k8s:
+        host: "{{ k8s_control_plane_api }}"
+        state: present
+        definition: "{{ lookup('template', 'k8s/cockroachdb-statefulset-insecure.yaml') }}"
+        namespace: monolithic
+
+    - name: Init CockroachDB cluster
+      k8s:
+        host: "{{ k8s_control_plane_api }}"
+        state: present
+        definition: "{{ lookup('template', 'k8s/cockroachdb-cluster-init.yaml') }}"
+        namespace: monolithic
+
+    - name:  Wait for CockroachDB start
+      uri:
+        url: "http://{{ db_hostname }}:8080/_admin/v1/health"
+        method: GET
+        return_content: yes
+      register: api_docs_response
+      until: api_docs_response.status == 200
+      retries: 120
+      delay: 1
+
+    - name: Execute mock script
+      shell: python /devops/loadtest/mock/monolithic_data.py
+
+    - name: Import mock data to CockroachDB
+      community.postgresql.postgresql_script:
+        login_host: "{{ db_hostname }}"
+        port: 26257
+        login_user: root
+        ssl_mode: disable
+        path: /devops/loadtest/preload/mock_monolithic_data.sql
+
+    - name: Create monolithic cluster
+      k8s:
+        host: "{{ k8s_control_plane_api }}"
+        state: present
+        definition: "{{ lookup('template', 'k8s/monolithic-cluster.yaml') }}"
+        namespace: monolithic
+
+    - name: Wait for API ready
+      uri:
+        url: "{{ api_url }}/api/docs"
+        method: GET
+        return_content: yes
+      register: api_docs_response
+      until: api_docs_response.status == 200
+      retries: 60
+      delay: 1
+
+    - name: Sleep 5 seconds before loadtest
+      pause:
+        seconds: 5
+
+    - name: Query account numbers from CockroachDB
+      community.postgresql.postgresql_query:
+        login_host: "{{ db_hostname }}"
+        port: 26257
+        login_user: root
+        ssl_mode: disable
+        db: monolithic
+        query: SELECT account_number FROM accounts
+      register: accounts_result
+
+    # - name: Debug accounts_result
+    #   debug:
+    #     var: accounts_result
+
+    - name: Convert account numbers to array
+      set_fact:
+        account_numbers: "{{ accounts_result.query_result | map(attribute='account_number') | list }}"
+
+    # - name: Debug account numbers
+    #   debug:
+    #     var: account_numbers
+
+    - name: Create env.js file
+      template:
+        src: /devops/loadtest/k6_template_monolithic.js
+        dest: /devops/loadtest/preload/k6_k8s_monolithic.js
+
+    - name: Run k6 loadtest script
+      shell: |
+        k6 run \
+        --summary-export=/loadtest_result/loadtest_k8s_monolithic_{{ '%Y%m%d%H%M%S' | strftime }}.json \
+        --vus 20 --duration 10s \
+        /devops/loadtest/preload/k6_k8s_monolithic.js
+
+    - name: Delete all resource in namespace
+      delegate_to: "{{ k8s_control_plane_node }}"
+      shell: kubectl delete "$(kubectl api-resources --namespaced=true --verbs=delete -o name | tr "\n" "," | sed -e 's/,$//')" --all -n monolithic
+
+    - name: Delete namespace
+      delegate_to: "{{ k8s_control_plane_node }}"
+      shell: kubectl delete namespace monolithic

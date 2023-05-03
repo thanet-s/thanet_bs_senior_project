@@ -38,7 +38,7 @@
 - RAM: 32 GB
 - DISK: 256 GB or above
 - NIC: 1 Gbe RJ45 port or above
-- OS: Ubuntu 22.04.xx Server from [http://mirror1.totbb.net/ubuntu-releases/jammy/](http://mirror1.totbb.net/ubuntu-releases/jammy/) (Faster in Thailand) or [https://releases.ubuntu.com/jammy/](https://releases.ubuntu.com/jammy/)
+- OS: Ubuntu 22.04.xx Server from [https://releases.ubuntu.com/jammy/](https://releases.ubuntu.com/jammy/)
 - Additional: Set IP address to 192.168.1.100 and able to connect via ssh with password
 
 ** you can adjust VM memory for low memory machine by follow [docs/Adjust_VM_memory.md](docs/Adjust_VM_memory.md)
@@ -62,7 +62,7 @@
 ```
 cd /<PATH>/<TO>/<THIS_GIT_DIR>
 ```
-- Clone Kubespray (~ 10 second)
+- Clone Kubespray
 ```
 git clone https://github.com/kubernetes-sigs/kubespray.git devops/deploy/kubespray --branch v2.21.0
 ```
@@ -83,7 +83,7 @@ git -C devops/deploy/kubespray cherry-pick \
     f366863a9911e6575462eedca4fba04c60beb72e \
     b7fe3684695db6a64fe371794cc94b1bc020bfab
 ```
-- Prepare docker image  (~ 3 minute)
+- Prepare docker image
 ```
 docker build -t project-utils devops && docker build -t kubespray devops/deploy/kubespray
 ```

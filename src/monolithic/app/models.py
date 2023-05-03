@@ -18,9 +18,9 @@ class User(Base):
     email = Column(String(255), unique=True, index=True)
     fullname = Column(String(255))
     phone_no = Column(String(10))
-    birthday = Column(DateTime)
+    birthday = Column(Date)
     password = Column(String(255))
-    created_at = Column(Date, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Account(Base):

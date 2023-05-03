@@ -2,6 +2,7 @@
 devops/deploy/kubespray/
 loadtest_result/
 key/
+devops/loadtest/preload/
 *.sql
 .DS_Store
 

@@ -76,35 +76,4 @@
 
     - name: Waiting ingress install
       pause:
-        seconds: 10
-
-    # - name: Create monolithic namespace
-    #   k8s:
-    #     host: "{{ k8s_control_plane_node }}"
-    #     state: present
-    #     definition:
-    #       apiVersion: v1
-    #       kind: Namespace
-    #       metadata:
-    #         name: monolithic
-
-    # - name: Create CockroachDB cluster
-    #   k8s:
-    #     host: "{{ k8s_control_plane_node }}"
-    #     state: present
-    #     definition: "{{ lookup('template', 'config/group3/cockroachdb-statefulset-insecure.yaml') }}"
-    #     namespace: monolithic
-
-    # - name: Init CockroachDB cluster
-    #   k8s:
-    #     host: "{{ k8s_control_plane_node }}"
-    #     state: present
-    #     definition: "{{ lookup('template', 'config/group3/cockroachdb-cluster-init.yaml') }}"
-    #     namespace: monolithic
-
-    # - name: Create monolithic cluster
-    #   k8s:
-    #     host: "{{ k8s_control_plane_node }}"
-    #     state: present
-    #     definition: "{{ lookup('template', 'config/group3/monolithic-cluster.yaml') }}"
-    #     namespace: monolithic
+        seconds: 20

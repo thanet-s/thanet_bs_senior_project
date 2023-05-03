@@ -10,7 +10,7 @@ fi
 docker run --rm -v $(pwd)/devops:/devops -v $(pwd)/key:/key:ro project-utils ansible-playbook deploy/deploy_kubernetes_precluster.yml -e "ansible_user=$ANSIBLE_USER"
 
 # Setup k8s cluster
-docker run --rm --mount type=bind,source="$(pwd)"/devops/deploy/kubespray/inventory/ubu-cluster,dst=/inventory -v $(pwd)/key:/key:ro kubespray ansible-playbook cluster.yml -i /inventory/inventory.ini -e "ansible_user=$ANSIBLE_USER" --become --become-user=root
+docker run --rm --mount type=bind,source="$(pwd)"/devops/deploy/kubespray/inventory/ubu-cluster,dst=/inventory -v $(pwd)/key:/key:ro -e ANSIBLE_HOST_KEY_CHECKING=False kubespray ansible-playbook cluster.yml -i /inventory/inventory.ini -e "ansible_user=$ANSIBLE_USER" --become --become-user=root
 
 # Post setup cluster
 docker run --rm -v $(pwd)/devops:/devops:ro -v $(pwd)/key:/key:ro project-utils ansible-playbook deploy/deploy_kubernetes_postcluster.yml -e "ansible_user=$ANSIBLE_USER"

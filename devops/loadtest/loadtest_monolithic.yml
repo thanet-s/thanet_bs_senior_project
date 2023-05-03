@@ -7,12 +7,18 @@
     vm2_host: "{{ groups['vm_group1'][1] }}"
     image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
     api_hostname: monolithic
+    db_hostname: db
     api_url: "http://{{ api_hostname }}"
 
   tasks:
     - name: Add {{ api_hostname }} DNS to /etc/hosts
       become: true
-      shell: "echo '{{ hostvars[vm1_host]['ansible_host'] }} {{ api_hostname }}' >> /etc/hosts"
+      shell: "echo '{{ item.ip }} {{ item.host }}' >> /etc/hosts"
+      loop:
+        - host: "{{ api_hostname }}"
+          ip: "{{ hostvars[vm1_host]['ansible_host'] }}"
+        - host: "{{ db_hostname }}"
+          ip: "{{ hostvars[vm2_host]['ansible_host'] }}"
 
     - name: Create hosts dictionary from group
       set_fact:
@@ -29,8 +35,6 @@
         name: db
         image: "{{ image_registry }}/cockroach:latest-v22.2"
         restart_policy: always
-        env:
-          COCKROACH_DATABASE: monolithic
         command: start-single-node --insecure
         volumes:
           - db-data:/cockroach/cockroach-data
@@ -38,6 +42,27 @@
         published_ports:
           - 26257:26257
           - 8080:8080
+
+    - name:  Wait for CockroachDB start
+      uri:
+        url: "http://{{ db_hostname }}:8080/_admin/v1/health"
+        method: GET
+        return_content: yes
+      register: api_docs_response
+      until: api_docs_response.status == 200
+      retries: 120
+      delay: 1
+
+    - name: Execute mock script
+      shell: python /devops/loadtest/mock/monolithic_data.py
+
+    - name: Import mock data to CockroachDB
+      community.postgresql.postgresql_script:
+        login_host: "{{ db_hostname }}"
+        port: 26257
+        login_user: root
+        ssl_mode: disable
+        path: /devops/loadtest/preload/mock_monolithic_data.sql
 
     - name: Create monolithic container
       delegate_to: "{{ vm1_host }}"
@@ -79,13 +104,39 @@
       pause:
         seconds: 5
 
+    - name: Query account numbers from CockroachDB
+      community.postgresql.postgresql_query:
+        login_host: "{{ db_hostname }}"
+        port: 26257
+        login_user: root
+        ssl_mode: disable
+        db: monolithic
+        query: SELECT account_number FROM accounts
+      register: accounts_result
+
+    # - name: Debug accounts_result
+    #   debug:
+    #     var: accounts_result
+
+    - name: Convert account numbers to array
+      set_fact:
+        account_numbers: "{{ accounts_result.query_result | map(attribute='account_number') | list }}"
+
+    # - name: Debug account numbers
+    #   debug:
+    #     var: account_numbers
+
+    - name: Create env.js file
+      template:
+        src: /devops/loadtest/k6_template_monolithic.js
+        dest: /devops/loadtest/preload/k6_monolithic.js
+
     - name: Run k6 loadtest script
       shell: |
         k6 run \
-        --out csv=/loadtest_result/loadtest_monolithic_{{ '%Y%m%d%H%M%S' | strftime }}.csv \
+        --summary-export=/loadtest_result/loadtest_monolithic_{{ '%Y%m%d%H%M%S' | strftime }}.json \
         --vus 20 --duration 10s \
-        --env API_URL={{ api_url }} \
-        /devops/loadtest/k6_monolithic.js
+        /devops/loadtest/preload/k6_monolithic.js
 
     - name: Delete monolithic container
       delegate_to: "{{ vm1_host }}"

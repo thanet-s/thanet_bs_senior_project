@@ -1,12 +1,12 @@
-FROM debian:11-slim
+FROM python:3.11-slim-bullseye
 
-ARG K6_VERSION="v0.43.1"
+ARG K6_VERSION="v0.44.0"
 
 # Install basic development tools
 RUN apt-get update && \
-  apt-get install -y curl python3-dev python3-pip sshpass rsync && \
-  pip3 install --no-cache-dir --upgrade pip && \
-  pip3 install --no-cache-dir ansible==7.3.0 docker==6.0.1 kubernetes==26.1.0 jsonpatch==1.32 \
+  apt-get install -y curl sshpass rsync && \
+  pip install --no-cache-dir --upgrade pip && \
+  pip install --no-cache-dir ansible==7.3.0 docker==6.0.1 kubernetes==26.1.0 jsonpatch==1.32 passlib[bcrypt]==1.7.4 psycopg2-binary==2.9.6 \
   && rm -rf /var/lib/apt/lists/*
 
 # Download k6

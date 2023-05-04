@@ -91,4 +91,11 @@ docker build -t project-utils devops && docker build -t kubespray devops/deploy/
 ```
 chmod +x devops/deploy/*.sh && ./devops/deploy/deploy.sh
 ```
-- 
+
+## Loadtest step
+
+- Run loadtest scripts
+```
+chmod +x devops/loadtest/*.sh && ./devops/loadtest/loadtest.sh
+```
+- View result in "loadtest_result" directory

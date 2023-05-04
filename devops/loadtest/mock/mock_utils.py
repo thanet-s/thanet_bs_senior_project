@@ -11,21 +11,37 @@ def account_sql(id, user_id, account_number, account_balance, created_at) -> str
     return f"INSERT INTO accounts (id, user_id, account_number, account_balance, created_at) VALUES ('{id}', '{user_id}', '{account_number}', {account_balance}, '{created_at}');"
 
 
+def increase_account_balance(account_number, amount) -> str:
+    return f"""UPDATE accounts SET account_balance = account_balance + {amount} WHERE account_number = '{account_number}';"""
+
+
+def decrease_account_balance(account_number, amount) -> str:
+    return f"""UPDATE accounts SET account_balance = account_balance - {amount} WHERE account_number = '{account_number}';"""
+
+
+def insert_transaction(tx_type, id, account_number, amount, created_at) -> str:
+    return f"""INSERT INTO transactions (id, account_number, amount, transaction_type, created_at) VALUES ('{id}', '{account_number}', {amount}, '{tx_type}', '{created_at}');"""
+
+
+def insert_transfer(id, destination_account_number) -> str:
+    return f"""INSERT INTO transfers (id, destination_account_number) VALUES ('{id}', '{destination_account_number}');"""
+
+
 def deposit_sql(id, account_number, amount, created_at) -> str:
-    return f"""UPDATE accounts SET account_balance = account_balance + {amount} WHERE account_number = '{account_number}';
-INSERT INTO transactions (id, account_number, amount, transaction_type, created_at) VALUES ('{id}', '{account_number}', {amount}, 'deposit', '{created_at}');"""
+    return increase_account_balance(account_number, amount) + "\n" \
+        + insert_transaction('deposit', id, account_number, amount, created_at)
 
 
 def withdraw_sql(id, account_number, amount, created_at) -> str:
-    return f"""UPDATE accounts SET account_balance = account_balance - {amount} WHERE account_number = '{account_number}';
-INSERT INTO transactions (id, account_number, amount, transaction_type, created_at) VALUES ('{id}', '{account_number}', {amount}, 'withdraw', '{created_at}');"""
+    return decrease_account_balance(account_number, amount) + "\n" \
+        + insert_transaction('withdraw', id, account_number, amount, created_at)
 
 
 def transfer_sql(id, account_number, amount, destination_account_number, created_at) -> str:
-    return f"""UPDATE accounts SET account_balance = account_balance - {amount} WHERE account_number = '{account_number}';
-UPDATE accounts SET account_balance = account_balance + {amount} WHERE account_number = '{destination_account_number}';
-INSERT INTO transactions (id, account_number, amount, transaction_type, created_at) VALUES ('{id}', '{account_number}', {amount}, 'transfer', '{created_at}');
-INSERT INTO transfers (id, destination_account_number) VALUES ('{id}', '{destination_account_number}');"""
+    return decrease_account_balance(account_number, amount) + "\n" \
+        + increase_account_balance(destination_account_number, amount) + "\n" \
+        + insert_transaction('transfer', id, account_number, amount, created_at) + "\n" \
+        + insert_transfer(id, destination_account_number)
 
 
 def get_password_hash(password) -> str:

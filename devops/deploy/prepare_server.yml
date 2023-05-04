@@ -306,7 +306,7 @@
     - name: Pull CockroachDB from DockerHub and push to {{ image_registry }} registry
       docker_image:
         name: "cockroachdb/cockroach"
-        source: pull
+        # source: pull
         tag: latest-v22.2
         repository: "{{ image_registry }}/cockroach"
         push: yes
@@ -314,7 +314,7 @@
     - name: Pull NGINX from DockerHub and push to {{ image_registry }} registry
       docker_image:
         name: "nginx"
-        source: pull
+        # source: pull
         tag: 1.21.6-alpine
         repository: "{{ image_registry }}/nginx"
         push: yes

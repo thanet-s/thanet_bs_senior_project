@@ -39,7 +39,7 @@ spec:
     app: backend
   ports:
     - name: http
-      port: 80
+      port: 8000
       targetPort: 8000
 
 ---
@@ -48,13 +48,15 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: backend
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /api/$1
 spec:
   ingressClassName: nginx
   rules:
     - host: k8s-monolithic
       http:
         paths:
-          - path: /api
+          - path: /api/(.*)
             pathType: Prefix
             backend:
               service:

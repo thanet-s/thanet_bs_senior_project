@@ -1,0 +1,175 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-backend
+  labels:
+    app: user-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: user-backend
+  template:
+    metadata:
+      labels:
+        app: user-backend
+    spec:
+      containers:
+        - name: user-backend
+          image: "{{ image_registry }}/user:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ACCOUNT_URL
+              value: account-backend
+            - name: DATABASE_URL
+              value: cockroachdb+psycopg2://root@cockroachdb-public:26257/userdb?sslmode=disable
+            - name: SECRET_KEY
+              value: {{ secret_key }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-backend
+  labels:
+    app: account-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: account-backend
+  template:
+    metadata:
+      labels:
+        app: account-backend
+    spec:
+      containers:
+        - name: account-backend
+          image: "{{ image_registry }}/account:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: cockroachdb+psycopg2://root@cockroachdb-public:26257/account?sslmode=disable
+            - name: SECRET_KEY
+              value: {{ secret_key }}
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaction-backend
+  labels:
+    app: transaction-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: transaction-backend
+  template:
+    metadata:
+      labels:
+        app: transaction-backend
+    spec:
+      containers:
+        - name: transaction-backend
+          image: "{{ image_registry }}/transaction:latest"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ACCOUNT_URL
+              value: account-backend
+            - name: DATABASE_URL
+              value: cockroachdb+psycopg2://root@cockroachdb-public:26257/transaction?sslmode=disable
+            - name: SECRET_KEY
+              value: {{ secret_key }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-backend
+  labels:
+    app: user-backend
+spec:
+  selector:
+    app: user-backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-backend
+  labels:
+    app: account-backend
+spec:
+  selector:
+    app: account-backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-backend
+  labels:
+    app: transaction-backend
+spec:
+  selector:
+    app: transaction-backend
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /api/$1
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: k8s-microservice
+      http:
+        paths:
+          - path: /user/api/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: user-backend
+                port:
+                  name: http
+          - path: /account/api/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: account-backend
+                port:
+                  name: http
+          - path: /transaction/api/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: transaction-backend
+                port:
+                  name: http

@@ -1,4 +1,4 @@
-- name: Loadtest monolithicc
+- name: Loadtest monolithic
   hosts: localhost
   gather_facts: no
 
@@ -126,7 +126,7 @@
     #   debug:
     #     var: account_numbers
 
-    - name: Create env.js file
+    - name: Create k6 JS file
       template:
         src: /devops/loadtest/k6_template_monolithic.js
         dest: /devops/loadtest/preload/k6_monolithic.js

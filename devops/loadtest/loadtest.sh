@@ -13,11 +13,12 @@ while true; do
 1 for monolithic
 2 for loadbalance monolithic
 3 for k8s monolithic
+4 for k8s microservice
 Enter your choice: " CHOICE
-    if [[ $CHOICE =~ ^[0-3]$ ]]; then
+    if [[ $CHOICE =~ ^[0-4]$ ]]; then
         break
     else
-        echo "Error: '$CHOICE' is not a valid choice. Please enter a number from 0 to 3."
+        echo "Error: '$CHOICE' is not a valid choice. Please enter a number from 0 to 4."
     fi
 done
 
@@ -36,12 +37,16 @@ for ((i = 0; i < $LOOPS; i++)); do
     echo "Running loadtest $((i + 1))/$LOOPS"
 
     case $CHOICE in
-        0) $PROJECT_DIR/devops/loadtest/loadtest_monolithic.sh
-           $PROJECT_DIR/devops/loadtest/loadtest_loadbalance_monolithic.sh
-           $PROJECT_DIR/devops/loadtest/loadtest_k8s_monolithic.sh;;
-        1) $PROJECT_DIR/devops/loadtest/loadtest_monolithic.sh;;
-        2) $PROJECT_DIR/devops/loadtest/loadtest_loadbalance_monolithic.sh;;
-        3) $PROJECT_DIR/devops/loadtest/loadtest_k8s_monolithic.sh;;
+    0)
+        $PROJECT_DIR/devops/loadtest/loadtest_monolithic.sh
+        $PROJECT_DIR/devops/loadtest/loadtest_loadbalance_monolithic.sh
+        $PROJECT_DIR/devops/loadtest/loadtest_k8s_monolithic.sh
+        $PROJECT_DIR/devops/loadtest/loadtest_k8s_microservice.sh
+        ;;
+    1) $PROJECT_DIR/devops/loadtest/loadtest_monolithic.sh ;;
+    2) $PROJECT_DIR/devops/loadtest/loadtest_loadbalance_monolithic.sh ;;
+    3) $PROJECT_DIR/devops/loadtest/loadtest_k8s_monolithic.sh ;;
+    4) $PROJECT_DIR/devops/loadtest/loadtest_k8s_microservice.sh ;;
     esac
 
     echo "Loop $((i + 1)) complete"

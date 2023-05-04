@@ -1,13 +1,13 @@
-- name: Loadtest k8s monolithic
+- name: Loadtest k8s microservice
   hosts: localhost
   gather_facts: no
 
   vars:
     k8s_control_plane_node: "{{ groups['vm_group3'][0] }}"
     k8s_control_plane_api: https://{{ hostvars[k8s_control_plane_node]['ansible_host'] }}:6443
-    k8s_namespace: monolithic
+    k8s_namespace: microservice
     image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
-    api_hostname: k8s-monolithic
+    api_hostname: k8s-microservice
     db_hostname: db
     api_url: "http://{{ api_hostname }}"
 
@@ -64,26 +64,62 @@
       delay: 1
 
     - name: Execute mock script
-      shell: python /devops/loadtest/mock/monolithic_data.py
+      shell: python /devops/loadtest/mock/microservice_data.py
 
-    - name: Import mock data to CockroachDB
+    - name: Import user mock data to CockroachDB
       community.postgresql.postgresql_script:
         login_host: "{{ db_hostname }}"
         port: 26257
         login_user: root
         ssl_mode: disable
-        path: /devops/loadtest/preload/mock_monolithic_data.sql
+        path: /devops/loadtest/preload/mock_microservice_user_data.sql
+
+    - name: Import account mock data to CockroachDB
+      community.postgresql.postgresql_script:
+        login_host: "{{ db_hostname }}"
+        port: 26257
+        login_user: root
+        ssl_mode: disable
+        path: /devops/loadtest/preload/mock_microservice_account_data.sql
+
+    - name: Import transaction mock data to CockroachDB
+      community.postgresql.postgresql_script:
+        login_host: "{{ db_hostname }}"
+        port: 26257
+        login_user: root
+        ssl_mode: disable
+        path: /devops/loadtest/preload/mock_microservice_transaction_data.sql
 
     - name: Create {{ k8s_namespace }} cluster
       k8s:
         host: "{{ k8s_control_plane_api }}"
         state: present
-        definition: "{{ lookup('template', 'k8s/monolithic-cluster.yaml') }}"
+        definition: "{{ lookup('template', 'k8s/microservice-cluster.yaml') }}"
         namespace: "{{ k8s_namespace }}"
 
-    - name: Wait for API ready
+    - name: Wait for User API ready
       uri:
-        url: "{{ api_url }}/api/docs"
+        url: "{{ api_url }}/user/api/docs"
+        method: GET
+        return_content: yes
+      register: api_docs_response
+      until: api_docs_response.status == 200
+      retries: 60
+      delay: 1
+
+    - name: Wait for Account API ready
+      uri:
+        url: "{{ api_url }}/account/api/docs"
+        method: GET
+        return_content: yes
+      register: api_docs_response
+      until: api_docs_response.status == 200
+      retries: 60
+      delay: 1
+
+    - name: Wait for Transaction API ready
+      uri:
+        url: "{{ api_url }}/transaction/api/docs"
         method: GET
         return_content: yes
       register: api_docs_response
@@ -101,7 +137,7 @@
         port: 26257
         login_user: root
         ssl_mode: disable
-        db: monolithic
+        db: account
         query: SELECT account_number FROM accounts
       register: accounts_result
 
@@ -119,15 +155,15 @@
 
     - name: Create k6 JS file
       template:
-        src: /devops/loadtest/k6_template_monolithic.js
-        dest: /devops/loadtest/preload/k6_k8s_monolithic.js
+        src: /devops/loadtest/k6_template_microservice.js
+        dest: /devops/loadtest/preload/k6_k8s_microservice.js
 
     - name: Run k6 loadtest script
       shell: |
         k6 run \
-        --summary-export=/loadtest_result/loadtest_k8s_monolithic_{{ '%Y%m%d%H%M%S' | strftime }}.json \
+        --summary-export=/loadtest_result/loadtest_k8s_microservice_{{ '%Y%m%d%H%M%S' | strftime }}.json \
         --vus 20 --duration 10s \
-        /devops/loadtest/preload/k6_k8s_monolithic.js
+        /devops/loadtest/preload/k6_k8s_microservice.js
 
     - name: Delete all resource in {{ k8s_namespace }} namespace
       delegate_to: "{{ k8s_control_plane_node }}"

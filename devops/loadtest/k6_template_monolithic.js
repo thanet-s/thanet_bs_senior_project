@@ -7,6 +7,7 @@ const loginPath = '/api/signin';
 const accountListPath = '/api/accounts';
 const accountBalancePath = '/api/balance/';
 const transferPath = '/api/transfer';
+const accountTransactionsPath = '/api/transactions/';
 
 const headers = {
   'Content-Type': 'application/json',
@@ -67,6 +68,12 @@ export default function () {
     check(transferRes, {
       'Transfer status is 200': (res) => res.status === 200,
       'Transfer response has data': (res) => !!res.json(),
+    });
+
+    const accountTransactionsRes = http.get(`${baseURL}${accountTransactionsPath}${accounts[0].account_number}`, { headers: headers });
+    check(accountTransactionsRes, {
+      'Account transactions status is 200': (res) => res.status === 200,
+      'Account transactions response has data': (res) => !!res.json(),
     });
   });
 

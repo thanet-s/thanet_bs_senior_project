@@ -145,7 +145,7 @@ async def transfer(
     db: Session = Depends(get_db),
     client_session: ClientSession = Depends(client_session_dep)
 ):
-    logging.info(type(client_session))
+    # logging.info(type(client_session))
     if transfer.fromacc == transfer.toacc:
         raise HTTPException(status_code=400, detail="Can not loop transfer")
     account_from: schemas.Account = await check_own_account(

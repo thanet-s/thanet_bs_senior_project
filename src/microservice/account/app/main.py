@@ -29,7 +29,7 @@ def check_own_account(account_number: str, current_user_id: UUID, db: Session) -
     return account
 
 @internal_router.post("/create_account/{user_id}", response_model=schemas.AccountResponse)
-async def account_list(user_id: str, db: Session = Depends(get_db)):
+async def create_account(user_id: str, db: Session = Depends(get_db)):
     all_acc_no = [id[0] for id in db.query(models.Account.account_number).all()]
     rand_acc_no = ''.join(random.choice(string.digits) for _ in range(10))
     while rand_acc_no in all_acc_no:

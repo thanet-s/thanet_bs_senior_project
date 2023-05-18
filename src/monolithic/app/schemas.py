@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from uuid import UUID
 
 class Token(BaseModel):
@@ -7,7 +7,7 @@ class Token(BaseModel):
     token_type: str
 
 class User(BaseModel):
-    email: str
+    email: EmailStr
     fullname: str
     phone_no: str
     birthday: date

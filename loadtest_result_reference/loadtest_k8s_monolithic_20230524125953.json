@@ -1,0 +1,214 @@
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "Authentication": {
+                "name": "Authentication",
+                "path": "::Authentication",
+                "id": "e27c07c74d84fc697478e1503d425296",
+                "groups": {},
+                "checks": {
+                        "Login status is 200": {
+                            "passes": 177,
+                            "fails": 0,
+                            "name": "Login status is 200",
+                            "path": "::Authentication::Login status is 200",
+                            "id": "060da00957eedf19f856cff8e3352163"
+                        },
+                        "Access token is present": {
+                            "name": "Access token is present",
+                            "path": "::Authentication::Access token is present",
+                            "id": "af721c32f4fffff4f400497cb71ace5c",
+                            "passes": 177,
+                            "fails": 0
+                        }
+                    }
+            },
+            "API Tests": {
+                "path": "::API Tests",
+                "id": "ea171d7676446f12e8ccb78ffadbe687",
+                "groups": {},
+                "checks": {
+                        "Account list status is 200": {
+                            "fails": 0,
+                            "name": "Account list status is 200",
+                            "path": "::API Tests::Account list status is 200",
+                            "id": "d168311723615f9bab217bd6e36cea9f",
+                            "passes": 177
+                        },
+                        "Account list response has data": {
+                            "path": "::API Tests::Account list response has data",
+                            "id": "ea7b49c8249e3a40afcfd43266e640fb",
+                            "passes": 177,
+                            "fails": 0,
+                            "name": "Account list response has data"
+                        },
+                        "Account balance status is 200": {
+                            "name": "Account balance status is 200",
+                            "path": "::API Tests::Account balance status is 200",
+                            "id": "1dd1208748947f5f5afbb02498149c9e",
+                            "passes": 177,
+                            "fails": 0
+                        },
+                        "Account balance response has data": {
+                            "passes": 177,
+                            "fails": 0,
+                            "name": "Account balance response has data",
+                            "path": "::API Tests::Account balance response has data",
+                            "id": "bbfd99a28f32184ed8efb6fe060e2d07"
+                        },
+                        "Transfer status is 200": {
+                            "name": "Transfer status is 200",
+                            "path": "::API Tests::Transfer status is 200",
+                            "id": "87437067bb89e583a4864da2cd56b095",
+                            "passes": 177,
+                            "fails": 0
+                        },
+                        "Transfer response has data": {
+                            "name": "Transfer response has data",
+                            "path": "::API Tests::Transfer response has data",
+                            "id": "7c87abfeb08b4b63d5dff9fd3c988942",
+                            "passes": 177,
+                            "fails": 0
+                        },
+                        "Account transactions status is 200": {
+                            "name": "Account transactions status is 200",
+                            "path": "::API Tests::Account transactions status is 200",
+                            "id": "bf58732010093e267ef486dab1c716e9",
+                            "passes": 163,
+                            "fails": 14
+                        },
+                        "Account transactions response has data": {
+                            "passes": 163,
+                            "fails": 14,
+                            "name": "Account transactions response has data",
+                            "path": "::API Tests::Account transactions response has data",
+                            "id": "8aa6d187387b58233ceca924d7a104c5"
+                        }
+                    },
+                "name": "API Tests"
+            }
+        },
+        "checks": {}
+    },
+    "metrics": {
+        "data_received": {
+            "count": 862344,
+            "rate": 79860.61358337887
+        },
+        "http_req_blocked": {
+            "avg": 0.1018160033898307,
+            "min": 0.001667,
+            "med": 0.005292,
+            "max": 5.573167,
+            "p(90)": 0.0077916,
+            "p(95)": 0.01040819999999999
+        },
+        "data_sent": {
+            "count": 278725,
+            "rate": 25812.37826323054
+        },
+        "vus": {
+            "value": 20,
+            "min": 20,
+            "max": 20
+        },
+        "iterations": {
+            "count": 177,
+            "rate": 16.391751556522756
+        },
+        "vus_max": {
+            "value": 20,
+            "min": 20,
+            "max": 20
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(95)": 605.312417,
+            "avg": 234.28938532146972,
+            "min": 4.168084,
+            "med": 193.779708,
+            "max": 1383.203418,
+            "p(90)": 456.865375
+        },
+        "http_req_receiving": {
+            "avg": 0.1314308892655367,
+            "min": 0.029459,
+            "med": 0.124417,
+            "max": 0.810917,
+            "p(90)": 0.1908332,
+            "p(95)": 0.221708
+        },
+        "checks": {
+            "passes": 1742,
+            "fails": 28,
+            "value": 0.984180790960452
+        },
+        "http_req_waiting": {
+            "avg": 235.1975222779662,
+            "min": 4.019583,
+            "med": 193.436083,
+            "max": 1383.124209,
+            "p(90)": 457.5863922,
+            "p(95)": 613.7018835999997
+        },
+        "http_req_sending": {
+            "avg": 0.03794884745762714,
+            "min": 0.01,
+            "med": 0.031625,
+            "max": 0.387458,
+            "p(90)": 0.0658664,
+            "p(95)": 0.07405859999999997
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_reqs": {
+            "count": 885,
+            "rate": 81.95875778261379
+        },
+        "http_req_duration": {
+            "avg": 235.36690201468932,
+            "min": 4.168084,
+            "med": 193.608875,
+            "max": 1383.203418,
+            "p(90)": 457.7103754,
+            "p(95)": 613.8268755999998
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "max": 5.541958,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.09493667796610171,
+            "min": 0
+        },
+        "iteration_duration": {
+            "p(90)": 1763.0778260000002,
+            "p(95)": 1953.8113923999995,
+            "avg": 1179.282010158192,
+            "min": 426.52575,
+            "med": 1126.232834,
+            "max": 2599.012209
+        },
+        "group_duration": {
+            "avg": 589.6046850988699,
+            "min": 176.529917,
+            "med": 496.9324795,
+            "max": 2172.467876,
+            "p(90)": 1100.9685876,
+            "p(95)": 1286.4644133999996
+        },
+        "http_req_failed": {
+            "passes": 14,
+            "fails": 871,
+            "value": 0.015819209039548022
+        }
+    }
+}

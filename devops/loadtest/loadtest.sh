@@ -52,4 +52,11 @@ for ((i = 0; i < $LOOPS; i++)); do
     echo "Loop $((i + 1)) complete"
 done
 
+if [[ $CHOICE == 0 ]]; then
+    echo ""
+    echo "++++++++++++++ Run Summary Script ++++++++++++++"
+    #Loadtest Summary
+    docker run --rm -v $(pwd)/devops/loadtest/summary_loadtest.py:/app/summary_loadtest.py -v $(pwd)/loadtest_result:/app/loadtest_result:ro python:3.11-slim python /app/summary_loadtest.py
+fi
+
 echo Loadtest complete!

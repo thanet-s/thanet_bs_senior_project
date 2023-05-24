@@ -12,6 +12,14 @@
     api_url: "http://{{ api_hostname }}"
 
   tasks:
+    - name: Wait for kube api start
+      wait_for:
+        host: "{{ hostvars[k8s_control_plane_node]['ansible_host'] }}"
+        port: 6443
+        delay: 5
+        timeout: 300
+        state: started
+
     - name: Add {{ api_hostname }} DNS to /etc/hosts
       become: true
       shell: "echo '{{ item.ip }} {{ item.host }}' >> /etc/hosts"

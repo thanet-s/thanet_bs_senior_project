@@ -4,11 +4,20 @@
 
   vars:
     image_registry: "{{ hostvars[groups['baremetal'][0]]['hostname'] }}:5000"
-    k8s_control_plane_node: https://{{ hostvars[groups['vm_group3'][0]]['ansible_host'] }}:6443
+    k8s_control_plane_node: "{{ groups['vm_group3'][0] }}"
+    k8s_control_plane_api: https://{{ hostvars[k8s_control_plane_node]['ansible_host'] }}:6443
 
   tasks:
+    - name: Wait for kube api start
+      wait_for:
+        host: "{{ hostvars[k8s_control_plane_node]['ansible_host'] }}"
+        port: 6443
+        delay: 5
+        timeout: 300
+        state: started
+
     - name: Create .kube directory in home directory
-      delegate_to: "{{ groups['vm_group3'][0] }}"
+      delegate_to: "{{ k8s_control_plane_node }}"
       file:
         path: "/home/{{ ansible_user }}/.kube"
         state: directory
@@ -17,7 +26,7 @@
         mode: "0755"
 
     - name: Copy kubectl config to home directory
-      delegate_to: "{{ groups['vm_group3'][0] }}"
+      delegate_to: "{{ k8s_control_plane_node }}"
       become: yes
       copy:
         src: /etc/kubernetes/admin.conf
@@ -27,7 +36,7 @@
         group: "{{ ansible_user }}"
 
     - name: Set ownership and permissions for kubectl directory
-      delegate_to: "{{ groups['vm_group3'][0] }}"
+      delegate_to: "{{ k8s_control_plane_node }}"
       become: yes
       file:
         path: /home/{{ ansible_user }}/.kube
@@ -37,30 +46,30 @@
         state: directory
 
     - name: Copy k8s config from server to local
-      delegate_to: "{{ groups['vm_group3'][0] }}"
+      delegate_to: "{{ k8s_control_plane_node }}"
       become: yes
       fetch:
         src: /etc/kubernetes/admin.conf
         dest: ~/.kube/config
         flat: yes
 
-    - name: Remove exclude-from-external-load-balancers label from {{ hostvars[groups['vm_group3'][0]]['hostname'] }}
-      delegate_to: "{{ groups['vm_group3'][0] }}"
-      command: kubectl label nodes {{ hostvars[groups['vm_group3'][0]]['hostname'] }} node.kubernetes.io/exclude-from-external-load-balancers-
+    - name: Remove exclude-from-external-load-balancers label from {{ hostvars[k8s_control_plane_node]['hostname'] }}
+      delegate_to: "{{ k8s_control_plane_node }}"
+      command: kubectl label nodes {{ hostvars[k8s_control_plane_node]['hostname'] }} node.kubernetes.io/exclude-from-external-load-balancers-
 
-    - name: Set node-role.kubernetes.io/control-plane label to {{ hostvars[groups['vm_group3'][0]]['hostname'] }}
-      delegate_to: "{{ groups['vm_group3'][0] }}"
-      command: kubectl label nodes {{ hostvars[groups['vm_group3'][0]]['hostname'] }} node-role.kubernetes.io/control-plane=true --overwrite
+    - name: Set node-role.kubernetes.io/control-plane label to {{ hostvars[k8s_control_plane_node]['hostname'] }}
+      delegate_to: "{{ k8s_control_plane_node }}"
+      command: kubectl label nodes {{ hostvars[k8s_control_plane_node]['hostname'] }} node-role.kubernetes.io/control-plane=true --overwrite
 
     - name: Install MetalLB
       k8s:
-        host: "{{ k8s_control_plane_node }}"
+        host: "{{ k8s_control_plane_api }}"
         state: present
         src: config/group3/metallb-native.yaml
 
     - name: Add {{ k8s_ingress_ip }} to MetalLB IP address
       k8s:
-        host: "{{ k8s_control_plane_node }}"
+        host: "{{ k8s_control_plane_api }}"
         state: present
         definition: "{{ lookup('template', 'config/group3/ipaddress_pools.yaml') }}"
       retries: 12
@@ -70,7 +79,7 @@
 
     - name: Install Ingress-NGINX
       k8s:
-        host: "{{ k8s_control_plane_node }}"
+        host: "{{ k8s_control_plane_api }}"
         state: present
         src: config/group3/ingress-nginx.yaml
 
